@@ -159,14 +159,8 @@ public final class ReactorCore implements Reactor, ReactorControl {
     // Update references to reactor service objects.
     this.logTarget = logTarget;
     logger = logTarget.getLogger("com.zynaptic.reaction", null);
-    logger.log(Level.INFO, "Reaction Asynchronous Programming Framework (c)2009-2019 Zynaptic Ltd.\n\n"
-        + "  Licensed under the Apache License, Version 2.0 (the \"License\"); you may not\n"
-        + "  use this file except in compliance with the License. You may obtain a copy of\n"
-        + "  the License at: http://www.apache.org/licenses/LICENSE-2.0\n"
-        + "  Unless required by applicable law or agreed to in writing, software\n"
-        + "  distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT\n"
-        + "  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the\n"
-        + "  License for the specific language governing permissions and limitations under\n" + "  the License.\n\n");
+    logger.log(Level.INFO, "\n  Reaction Asynchronous Programming Framework (c)2009-2019 Zynaptic Ltd.\n"
+        + "  For license terms see http://www.apache.org/licenses/LICENSE-2.0\n");
     this.clockSource = clockSource;
     this.clockSource.init();
 
