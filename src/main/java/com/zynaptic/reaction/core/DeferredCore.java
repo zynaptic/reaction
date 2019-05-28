@@ -76,8 +76,9 @@ public final class DeferredCore<T> implements Deferred<T>, Timeable<T> {
   /**
    * Tidy up the deferred event object when it is garbage collected. This adds
    * warnings to the logs if the deferred goes out of scope without being
-   * triggered or terminated.
+   * triggered or terminated. Currently uses the deprecated 'finalize' method.
    */
+  @SuppressWarnings("deprecation")
   @Override
   public void finalize() {
     if ((!callbackDataValid) && (!callbackErrorValid)) {
