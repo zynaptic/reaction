@@ -327,7 +327,7 @@ public final class DeferredCore<T> implements Deferred<T>, Timeable<T> {
     }
 
     // Any data returned by the terminal deferrable is discarded.
-    // Terminal error conditions are passed to the reactor on closure.
+    // Terminal error conditions are passed to the reactor on closing.
     reactorCore.closeDeferred(this, callbackErrorValid ? callbackError : null);
   }
 

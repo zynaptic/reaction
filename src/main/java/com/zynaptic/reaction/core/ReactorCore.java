@@ -482,17 +482,17 @@ public final class ReactorCore implements Reactor, ReactorControl {
   }
 
   /*
-   * Provide closure for deferred execution. This is always called from reactor
-   * thread context.
+   * Provide error handling for deferred execution. This is always called from
+   * reactor thread context on closing a deferred callback chain.
    */
   synchronized void closeDeferred(final DeferredCore<?> deferred, final Throwable error) {
     if (error != null) {
       if (error instanceof Error) {
-        logger.log(Level.SEVERE, "Fatal error in deferred closure - stopping reactor.", error);
+        logger.log(Level.SEVERE, "Fatal error in closing deferred callback - stopping reactor.", error);
         exitError = (Error) error;
         reactorRunning = false;
       } else {
-        logger.log(Level.WARNING, "Unhandled exception in deferred closure.", error);
+        logger.log(Level.WARNING, "Unhandled exception in closing deferred callback.", error);
       }
     }
   }
