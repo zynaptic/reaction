@@ -79,4 +79,20 @@ public class LambdaFunctionTest extends TestCase {
     JUnitTestRunner testRunner = new JUnitTestRunner();
     testRunner.runTest(new LambdaFunctionTests.ChainedErrbacksInterimTrigger());
   }
+
+  /**
+   * Test run later capability with single input argument.
+   */
+  public void testRunLaterSingleArg() {
+    JUnitTestRunner testRunner = new JUnitTestRunner();
+    testRunner.runTest(new LambdaFunctionTests.RunLaterSingleArg());
+  }
+
+  /**
+   * Test run later capability with dual input arguments.
+   */
+  public void testRunLaterDualArg() {
+    JUnitTestRunner testRunner = new JUnitTestRunner();
+    testRunner.runTest(new LambdaFunctionTests.RunLaterDualArg());
+  }
 }

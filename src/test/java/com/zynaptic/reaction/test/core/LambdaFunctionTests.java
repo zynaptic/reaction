@@ -21,6 +21,9 @@
 
 package com.zynaptic.reaction.test.core;
 
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+
 import com.zynaptic.reaction.Deferred;
 import com.zynaptic.reaction.Reactor;
 import com.zynaptic.reaction.Timeable;
@@ -303,6 +306,89 @@ public class LambdaFunctionTests {
         reactor.runTimerOneShot(callbackTest, 0, null);
       } catch (Exception error) {
         deferredDone.errback(error);
+      }
+    }
+  }
+
+  /**
+   * Test run later capability with a single input argument to the lambda
+   * function.
+   */
+  public static class RunLaterSingleArg implements Timeable<Object[]> {
+
+    private Reactor reactor;
+    private Deferred<Integer> deferredDone;
+    private int i = 0;
+    private boolean[] flags = new boolean[] { false };
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void onTick(Object[] params) {
+
+      // On first call, initiate test.
+      if (i == 0) {
+        reactor = (Reactor) params[0];
+        deferredDone = (Deferred<Integer>) params[1];
+        i += 1;
+        reactor.runTimerOneShot(this, 1000, null);
+
+        // Run the timed lambda function.
+        Consumer<boolean[]> function = (boolean[] flags) -> {
+          System.out.println("Lambda timer completed");
+          flags[0] = true;
+        };
+        reactor.runLater(function, 500, flags);
+      }
+
+      // Callback after test - notify completion.
+      else {
+        if (flags[0]) {
+          deferredDone.callback(0);
+        } else {
+          deferredDone.errback(new Exception("Run later function not executed"));
+        }
+      }
+    }
+  }
+
+  /**
+   * Test run later capability with dual input arguments to the lambda function.
+   */
+  public static class RunLaterDualArg implements Timeable<Object[]> {
+
+    private Reactor reactor;
+    private Deferred<Integer> deferredDone;
+    private int i = 0;
+    private boolean[] flags = new boolean[] { false };
+    private int[] values = new int[] { 0 };
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void onTick(Object[] params) {
+
+      // On first call, initiate test.
+      if (i == 0) {
+        reactor = (Reactor) params[0];
+        deferredDone = (Deferred<Integer>) params[1];
+        i += 1;
+        reactor.runTimerOneShot(this, 1000, null);
+
+        // Run the timed lambda function.
+        BiConsumer<boolean[], int[]> function = (boolean[] flags, int[] values) -> {
+          System.out.println("Lambda timer completed");
+          flags[0] = true;
+          values[0] = 42;
+        };
+        reactor.runLater(function, 500, flags, values);
+      }
+
+      // Callback after test - notify completion.
+      else {
+        if (flags[0] && (values[0] == 42)) {
+          deferredDone.callback(0);
+        } else {
+          deferredDone.errback(new Exception("Run later function not executed"));
+        }
       }
     }
   }
