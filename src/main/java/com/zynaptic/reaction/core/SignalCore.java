@@ -23,6 +23,8 @@ package com.zynaptic.reaction.core;
 
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import com.zynaptic.reaction.ReactorNotRunningException;
 import com.zynaptic.reaction.RestrictedCapabilityException;
@@ -64,6 +66,46 @@ public final class SignalCore<T> implements Signal<T> {
     } else {
       throw new SignalContextException("Attempted to subscribe signalable from signal callback.");
     }
+  }
+
+  /*
+   * Implements Signal.subscribe(...)
+   */
+  public Signalable<T> subscribe(Consumer<T> consumer) throws SignalContextException {
+    Signalable<T> signalable = new Signalable<T>() {
+      private Consumer<T> consumer;
+
+      public void onSignal(Signal<T> signalId, T data) {
+        consumer.accept(data);
+      }
+
+      public Signalable<T> setConsumer(Consumer<T> consumer) {
+        this.consumer = consumer;
+        return this;
+      }
+    }.setConsumer(consumer);
+    subscribe(signalable, 0);
+    return signalable;
+  }
+
+  /*
+   * Implements Signal.subscribe(...)
+   */
+  public Signalable<T> subscribe(BiConsumer<Signal<T>, T> consumer) throws SignalContextException {
+    Signalable<T> signalable = new Signalable<T>() {
+      private BiConsumer<Signal<T>, T> consumer;
+
+      public void onSignal(Signal<T> signalId, T data) {
+        consumer.accept(signalId, data);
+      }
+
+      public Signalable<T> setConsumer(BiConsumer<Signal<T>, T> consumer) {
+        this.consumer = consumer;
+        return this;
+      }
+    }.setConsumer(consumer);
+    subscribe(signalable, 0);
+    return signalable;
   }
 
   /*
@@ -209,6 +251,14 @@ public final class SignalCore<T> implements Signal<T> {
 
     public void subscribe(Signalable<T> signalable, int priorityLevel) {
       signalCore.subscribe(signalable, priorityLevel);
+    }
+
+    public Signalable<T> subscribe(Consumer<T> consumer) {
+      return signalCore.subscribe(consumer);
+    }
+
+    public Signalable<T> subscribe(BiConsumer<Signal<T>, T> consumer) {
+      return signalCore.subscribe(consumer);
     }
 
     public void unsubscribe(Signalable<T> signalable) {

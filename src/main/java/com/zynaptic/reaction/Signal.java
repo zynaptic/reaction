@@ -21,6 +21,9 @@
 
 package com.zynaptic.reaction;
 
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+
 /**
  * Defines the signal event interface. This provides the user API for
  * manipulating signal event objects. Signal event objects can only be created
@@ -69,6 +72,48 @@ public interface Signal<T> {
    *   made to subscribe to a signal when the reactor is not running.
    */
   public void subscribe(Signalable<T> signalable, int priorityLevel)
+      throws SignalContextException, ReactorNotRunningException;
+
+  /**
+   * Subscribes a new consumer function without a signal identifier input. This
+   * method is used in order to subscribe a consumer function to this signal,
+   * which means that the consumer function will be called on of any events
+   * associated with the signal. The consumer function is subscribed with a
+   * priority level of zero.
+   * 
+   * @param consumer This is the consumer function which is being subscribed. It
+   *   takes a single input which is the generated signal data.
+   * @return Returns a reference to the signalable object which has been used to
+   *   wrap the consumer function.
+   * @throws SignalContextException This runtime exception is thrown if there is
+   *   an attempt to subscribe a new consumer function from the context of a
+   *   signal event callback.
+   * @throws ReactorNotRunningException This exception is thrown when attempt is
+   *   made to subscribe to a signal when the reactor is not running.
+   */
+  public Signalable<T> subscribe(Consumer<T> consumer) throws SignalContextException, ReactorNotRunningException;
+
+  /**
+   * Subscribes a new consumer function with a signal identifier input. This
+   * method is used in order to subscribe a consumer function to this signal,
+   * which means that the consumer function will be called on of any events
+   * associated with the signal. The consumer function is subscribed with a
+   * priority level of zero. Note that consumer functions cannot be unsubscribed
+   * and will remain attached to the signal source until {@link #signalFinalize}
+   * is called.
+   * 
+   * @param consumer This is the consumer function which is being subscribed. It
+   *   takes two inputs, the first of which is a reference to the generating
+   *   signal object and the second of which is the generated signal data.
+   * @return Returns a reference to the signalable object which has been used to
+   *   wrap the consumer function.
+   * @throws SignalContextException This runtime exception is thrown if there is
+   *   an attempt to subscribe a new consumer function from the context of a
+   *   signal event callback.
+   * @throws ReactorNotRunningException This exception is thrown when attempt is
+   *   made to subscribe to a signal when the reactor is not running.
+   */
+  public Signalable<T> subscribe(BiConsumer<Signal<T>, T> consumer)
       throws SignalContextException, ReactorNotRunningException;
 
   /**
