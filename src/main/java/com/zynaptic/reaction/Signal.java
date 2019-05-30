@@ -47,8 +47,8 @@ public interface Signal<T> {
    * @throws SignalContextException This runtime exception is thrown if there is
    *   an attempt to subscribe a new signalable object from the context of a
    *   signal event callback.
-   * @throws ReactorNotRunningException This exception is thrown when attempt is
-   *   made to subscribe to a signal when the reactor is not running.
+   * @throws ReactorNotRunningException This exception is thrown when an attempt
+   *   is made to subscribe to a signal when the reactor is not running.
    */
   public void subscribe(Signalable<T> signalable) throws SignalContextException, ReactorNotRunningException;
 
@@ -68,8 +68,8 @@ public interface Signal<T> {
    * @throws SignalContextException This runtime exception is thrown if there is
    *   an attempt to subscribe a new signalable object from the context of a
    *   signal event callback.
-   * @throws ReactorNotRunningException This exception is thrown when attempt is
-   *   made to subscribe to a signal when the reactor is not running.
+   * @throws ReactorNotRunningException This exception is thrown when an attempt
+   *   is made to subscribe to a signal when the reactor is not running.
    */
   public void subscribe(Signalable<T> signalable, int priorityLevel)
       throws SignalContextException, ReactorNotRunningException;
@@ -77,7 +77,7 @@ public interface Signal<T> {
   /**
    * Subscribes a new consumer function without a signal identifier input. This
    * method is used in order to subscribe a consumer function to this signal,
-   * which means that the consumer function will be called on of any events
+   * which means that the consumer function will be called on any events
    * associated with the signal. The consumer function is subscribed with a
    * priority level of zero.
    * 
@@ -88,15 +88,15 @@ public interface Signal<T> {
    * @throws SignalContextException This runtime exception is thrown if there is
    *   an attempt to subscribe a new consumer function from the context of a
    *   signal event callback.
-   * @throws ReactorNotRunningException This exception is thrown when attempt is
-   *   made to subscribe to a signal when the reactor is not running.
+   * @throws ReactorNotRunningException This exception is thrown when an attempt
+   *   is made to subscribe to a signal when the reactor is not running.
    */
   public Signalable<T> subscribe(Consumer<T> consumer) throws SignalContextException, ReactorNotRunningException;
 
   /**
    * Subscribes a new consumer function with a signal identifier input. This
    * method is used in order to subscribe a consumer function to this signal,
-   * which means that the consumer function will be called on of any events
+   * which means that the consumer function will be called on any events
    * associated with the signal. The consumer function is subscribed with a
    * priority level of zero. Note that consumer functions cannot be unsubscribed
    * and will remain attached to the signal source until {@link #signalFinalize}
@@ -110,8 +110,8 @@ public interface Signal<T> {
    * @throws SignalContextException This runtime exception is thrown if there is
    *   an attempt to subscribe a new consumer function from the context of a
    *   signal event callback.
-   * @throws ReactorNotRunningException This exception is thrown when attempt is
-   *   made to subscribe to a signal when the reactor is not running.
+   * @throws ReactorNotRunningException This exception is thrown when an attempt
+   *   is made to subscribe to a signal when the reactor is not running.
    */
   public Signalable<T> subscribe(BiConsumer<Signal<T>, T> consumer)
       throws SignalContextException, ReactorNotRunningException;
