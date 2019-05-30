@@ -28,8 +28,7 @@ import com.zynaptic.reaction.Deferred;
  * Define a deferrable object which checks callback validity. Legacy test
  * harness does not include strong generic type checking.
  */
-@SuppressWarnings({ "rawtypes" })
-public class DeferrableCallbackValidator implements Deferrable {
+public class DeferrableCallbackValidator implements Deferrable<Object, Object> {
 
   private Object refData;
   private Object outData;
@@ -62,12 +61,12 @@ public class DeferrableCallbackValidator implements Deferrable {
    * Callback checks validity of data passed in and either throws the exception or
    * passes back the output data.
    */
-  public Object onCallback(Deferred deferred, Object data) throws Exception {
+  public Object onCallback(Deferred<Object> deferred, Object data) throws Exception {
     called = true;
     if (refException != null) {
       returnError = new Exception("Callback not expected in this context.");
-    } else if (refData != data) {
-      returnError = new Exception("Data mismatch on callback.");
+    } else if (!refData.equals(data)) {
+      returnError = new Exception("Data mismatch on callback (expected `" + refData + "`, got `" + data + "`)");
     }
     if (outException != null) {
       throw outException;
@@ -79,12 +78,13 @@ public class DeferrableCallbackValidator implements Deferrable {
    * Errback checks validity of exception passed in and either throws the
    * exception or passes back the output data.
    */
-  public Object onErrback(Deferred deferred, Exception error) throws Exception {
+  public Object onErrback(Deferred<Object> deferred, Exception error) throws Exception {
     called = true;
     if (refException == null) {
       returnError = new Exception("Errback not expected in this context.");
-    } else if (refException != error) {
-      returnError = new Exception("Exception mismatch on errback");
+    } else if (!refException.getMessage().equals(error.getMessage())) {
+      returnError = new Exception("Exception mismatch on errback (expected `" + refException.getMessage() + "`, got `"
+          + error.getMessage() + "`)");
     }
     if (outException != null) {
       throw outException;
