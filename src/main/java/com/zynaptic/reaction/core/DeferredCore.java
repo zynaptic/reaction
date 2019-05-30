@@ -23,6 +23,7 @@ package com.zynaptic.reaction.core;
 
 import java.util.Date;
 import java.util.LinkedList;
+import java.util.function.Function;
 
 import com.zynaptic.reaction.Deferrable;
 import com.zynaptic.reaction.Deferred;
@@ -132,6 +133,56 @@ public final class DeferredCore<T> implements Deferred<T>, Timeable<T> {
     // Append deferrable to the callback chain.
     callbackChain.addLast(deferrable);
     return this.typePunned();
+  }
+
+  /*
+   * Implements Deferred.addCallback(...)
+   */
+  @Override
+  public final <U> Deferred<U> addCallback(final Function<T, U> callback) throws DeferredTerminationException {
+    Deferrable<T, U> deferrable;
+    deferrable = new Deferrable<T, U>() {
+      private Function<T, U> callback;
+
+      public U onCallback(Deferred<T> deferred, T data) throws Exception {
+        return callback.apply(data);
+      }
+
+      public U onErrback(Deferred<T> deferred, Exception error) throws Exception {
+        throw error;
+      }
+
+      public Deferrable<T, U> setCallback(Function<T, U> callback) {
+        this.callback = callback;
+        return this;
+      }
+    }.setCallback(callback);
+    return this.addDeferrable(deferrable);
+  }
+
+  /*
+   * Implements Deferred.addErrback(...)
+   */
+  @Override
+  public final Deferred<T> addErrback(final Function<Exception, T> errback) throws DeferredTerminationException {
+    Deferrable<T, T> deferrable;
+    deferrable = new Deferrable<T, T>() {
+      private Function<Exception, T> errback;
+
+      public T onCallback(Deferred<T> deferred, T data) throws Exception {
+        return data;
+      }
+
+      public T onErrback(Deferred<T> deferred, Exception error) throws Exception {
+        return errback.apply(error);
+      }
+
+      public Deferrable<T, T> setErrback(Function<Exception, T> errback) {
+        this.errback = errback;
+        return this;
+      }
+    }.setErrback(errback);
+    return this.addDeferrable(deferrable);
   }
 
   /*
@@ -414,6 +465,14 @@ public final class DeferredCore<T> implements Deferred<T>, Timeable<T> {
 
     public <U> Deferred<U> addDeferrable(Deferrable<T, U> deferrable) throws DeferredTerminationException {
       return deferredCore.addDeferrable(deferrable);
+    }
+
+    public final <U> Deferred<U> addCallback(final Function<T, U> callback) throws DeferredTerminationException {
+      return deferredCore.addCallback(callback);
+    }
+
+    public final Deferred<T> addErrback(final Function<Exception, T> errback) throws DeferredTerminationException {
+      return deferredCore.addErrback(errback);
     }
 
     public Deferred<T> terminate() throws DeferredTerminationException {

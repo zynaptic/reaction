@@ -21,6 +21,8 @@
 
 package com.zynaptic.reaction;
 
+import java.util.function.Function;
+
 /**
  * Defines the deferred event interface. This is the public interface to the
  * <em>deferred event objects</em> implemented by the Reaction framework.
@@ -129,6 +131,44 @@ public interface Deferred<T> {
    *   deferrable.
    */
   public <U> Deferred<U> addDeferrable(Deferrable<T, U> deferrable) throws DeferredTerminationException;
+
+  /**
+   * Attaches a callback function to the deferred event. This will be wrapped as a
+   * deferrable object where the specified function is used as the
+   * {@link Deferrable#onCallback} method and a pass-through function is used as
+   * the {@link Deferrable#onErrback} method.
+   * 
+   * @param <U> This type parameter specifies the data type which is returned by
+   *   the callback function.
+   * @param callback This is the lambda function which is to be used as the
+   *   attached callback function.
+   * @return Returns a reference to this deferred object where the parameterised
+   *   data type has been modified to match the return type declared by the lambda
+   *   function. In order to maintain type consistency, this new reference should
+   *   then be used for adding further deferrable objects to the deferred callback
+   *   chain.
+   * @throws DeferredTerminationException This runtime exception is raised if the
+   *   deferred callback chain has already been terminated by adding a terminal
+   *   deferrable.
+   */
+  public <U> Deferred<U> addCallback(Function<T, U> callback) throws DeferredTerminationException;
+
+  /**
+   * Attaches an error callback function to the deferred event. This will be
+   * wrapped as a deferrable object where the specified function is used as the
+   * {@link Deferrable#onErrback} method and a pass-through function is used as
+   * the {@link Deferrable#onCallback} method.
+   * 
+   * @param errback This is the lambda function which is to be used as the
+   *   attached error callback function.
+   * @return Returns a reference to this deferred object where the parameterised
+   *   data type is preserved, reflecting the fact that the callback method is a
+   *   pass-through function.
+   * @throws DeferredTerminationException This runtime exception is raised if the
+   *   deferred callback chain has already been terminated by adding a terminal
+   *   deferrable.
+   */
+  public Deferred<T> addErrback(Function<Exception, T> errback) throws DeferredTerminationException;
 
   /**
    * Terminates a deferred callback chain. This method is used to terminate a
