@@ -26,6 +26,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.MissingResourceException;
 import java.util.TreeSet;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 
 import com.zynaptic.reaction.Deferrable;
@@ -259,6 +261,52 @@ public final class ReactorCore implements Reactor, ReactorControl {
       signalQueue.add(new SignalData<T>(signalId, data, isFinal));
       notifyAll();
     }
+  }
+
+  /*
+   * Implements Reactor.runLater(...)
+   */
+  public final <T> void runLater(Consumer<T> function, int msDelay, T data) {
+    runTimerOneShot(new Timeable<T>() {
+      private Consumer<T> function;
+
+      public void onTick(T data) {
+        function.accept(data);
+      }
+
+      public Timeable<T> setFunction(Consumer<T> function) {
+        if (function == null) {
+          throw new NullPointerException("Null lambda function reference.");
+        }
+        this.function = function;
+        return this;
+      }
+    }.setFunction(function), msDelay, data);
+  }
+
+  /*
+   * Implements Reactor.runLater(...)
+   */
+  public <T, U> void runLater(BiConsumer<T, U> function, int msDelay, T data1, U data2) {
+    runTimerOneShot(new Timeable<Object[]>() {
+      private BiConsumer<T, U> function;
+
+      public void onTick(Object[] data) {
+        @SuppressWarnings("unchecked")
+        T data1 = (T) data[0];
+        @SuppressWarnings("unchecked")
+        U data2 = (U) data[1];
+        function.accept(data1, data2);
+      }
+
+      public Timeable<Object[]> setFunction(BiConsumer<T, U> function) {
+        if (function == null) {
+          throw new NullPointerException("Null lambda function reference.");
+        }
+        this.function = function;
+        return this;
+      }
+    }.setFunction(function), msDelay, new Object[] { data1, data2 });
   }
 
   /*

@@ -22,6 +22,8 @@
 package com.zynaptic.reaction;
 
 import java.util.MissingResourceException;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Defines the user API for accessing the reactor object. The reactor object
@@ -130,6 +132,44 @@ public interface Reactor {
    *   timer should be cancelled.
    */
   public void cancelTimer(Timeable<?> timeable);
+
+  /**
+   * Executes a lambda function after a specified delay. This method is used to
+   * schedule the execution of a single parameter consumer function after a given
+   * time delay.
+   *
+   * @param <T> This type identifier specifies the type of the single lambda
+   *   function parameter which will be passed on executing the lambda function.
+   * @param function This is the consumer function which is to be executed after
+   *   the specified delay. It will accept the supplied input data and return no
+   *   result.
+   * @param msDelay This is the delay after which the supplied lambda function
+   *   will be executed.
+   * @param data This is the lambda function parameter data item which will be
+   *   passed to the lambda function on execution.
+   */
+  public <T> void runLater(Consumer<T> function, int msDelay, T data);
+
+  /**
+   * Executes a lambda function after a specified delay. This method is used to
+   * schedule the execution of a dual parameter consumer function after a given
+   * time delay.
+   *
+   * @param <T> This type identifier specifies the type of the first lambda
+   *   function parameter which will be passed on executing the lambda function.
+   * @param <U> This type identifier specifies the type of the second lambda
+   *   function parameter which will be passed on executing the lambda function.
+   * @param function This is the consumer function which is to be executed after
+   *   the specified delay. It will accept the supplied input data and return no
+   *   result.
+   * @param msDelay This is the delay after which the supplied lambda function
+   *   will be executed.
+   * @param data1 This is the first lambda function parameter data item which will
+   *   be passed to the lambda function on execution.
+   * @param data2 This is the second lambda function parameter data item which
+   *   will be passed to the lambda function on execution.
+   */
+  public <T, U> void runLater(BiConsumer<T, U> function, int msDelay, T data1, U data2);
 
   /**
    * Starts executing a threadable task in a new thread. This method submits a
