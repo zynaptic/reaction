@@ -56,12 +56,14 @@ public interface DeferredConcentrator<T> {
    * 
    * @param deferred This is the deferred event object which is to be added to the
    *   concentrator list.
+   * @return Returns a reference to the deferred concentrator instance allowing
+   *   fluent-style application of the method.
    * @throws DeferredTerminationException This exception is thrown if the deferred
    *   event object being passed as the parameter has already had its callback
    *   chain terminated, or the output deferred event object has already been
    *   requested which prevents further additions to the list.
    */
-  public void addInputDeferred(Deferred<T> deferred) throws DeferredTerminationException;
+  public DeferredConcentrator<T> addInputDeferred(Deferred<T> deferred) throws DeferredTerminationException;
 
   /**
    * Accesses the output deferred event object for the concentrator list. The

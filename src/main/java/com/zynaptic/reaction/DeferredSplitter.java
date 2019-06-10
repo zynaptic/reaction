@@ -48,12 +48,14 @@ public interface DeferredSplitter<T> {
    * 
    * @param deferred This is the input deferred event object which will be used to
    *   trigger the callbacks on the splitter.
+   * @return Returns a reference to the deferred splitter instance allowing
+   *   fluent-style application on the method.
    * @throws DeferredTerminationException This exception will be thrown if an
    *   attempt is made to add more than one deferrable event object as an input.
    *   It will also be generated if the callback chain associated with the
    *   deferred event object has already been terminated.
    */
-  public void addInputDeferred(Deferred<T> deferred) throws DeferredTerminationException;
+  public DeferredSplitter<T> addInputDeferred(Deferred<T> deferred) throws DeferredTerminationException;
 
   /**
    * Obtains a handle on a unique output deferred event object. This method is

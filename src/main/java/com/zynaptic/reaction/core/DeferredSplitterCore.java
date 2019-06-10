@@ -56,7 +56,8 @@ public final class DeferredSplitterCore<T> implements DeferredSplitter<T>, Defer
   /*
    * Attach a single deferred event input to this deferrable list.
    */
-  public synchronized void addInputDeferred(final Deferred<T> deferred) throws DeferredTerminationException {
+  public synchronized DeferredSplitter<T> addInputDeferred(final Deferred<T> deferred)
+      throws DeferredTerminationException {
 
     // Only a single deferred input event can be attached.
     if (deferredInput != null) {
@@ -67,6 +68,7 @@ public final class DeferredSplitterCore<T> implements DeferredSplitter<T>, Defer
     // input event.
     deferredInput = deferred;
     deferredInput.addDeferrable(this, true);
+    return this;
   }
 
   /*

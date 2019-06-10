@@ -56,7 +56,8 @@ public final class DeferredConcentratorCore<T> implements DeferredConcentrator<T
   /*
    * Attach multiple input events to the deferred list.
    */
-  public synchronized void addInputDeferred(final Deferred<T> deferred) throws DeferredTerminationException {
+  public synchronized DeferredConcentrator<T> addInputDeferred(final Deferred<T> deferred)
+      throws DeferredTerminationException {
 
     // Check to see if the output deferred has already been requested.
     if (deferredOutput != null) {
@@ -68,6 +69,7 @@ public final class DeferredConcentratorCore<T> implements DeferredConcentrator<T
 
     // Terminate the deferred input callback chain.
     deferred.addDeferrable(this, true);
+    return this;
   }
 
   /*
