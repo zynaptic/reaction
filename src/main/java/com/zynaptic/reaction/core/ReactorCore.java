@@ -211,26 +211,37 @@ public final class ReactorCore implements Reactor, ReactorControl {
   /*
    * Implements Reactor.getUptime()
    */
-  public synchronized long getUptime() {
-    if (clockSource != null) {
-      return clockSource.getMsTime();
+  public long getUptime() {
+    MonotonicClockSource clockSourceRef = clockSource;
+    if (clockSourceRef != null) {
+      return clockSourceRef.getMsTime();
     } else {
-      return 0;
+      throw new IllegalStateException("Attempted to access uninitialised reactor uptime.");
     }
   }
 
   /*
    * Implements Reactor.getLogger(...)
    */
-  public synchronized Logger getLogger(String loggerId) {
-    return logTarget.getLogger(loggerId, null);
+  public Logger getLogger(String loggerId) {
+    ReactorLogTarget logTargetRef = logTarget;
+    if (logTargetRef != null) {
+      return logTargetRef.getLogger(loggerId, null);
+    } else {
+      throw new IllegalStateException("Attempted to access uninitialised reactor log service");
+    }
   }
 
   /*
    * Implements Reactor.getLogger(...)
    */
-  public synchronized Logger getLogger(String loggerId, String loggerResources) throws MissingResourceException {
-    return logTarget.getLogger(loggerId, loggerResources);
+  public Logger getLogger(String loggerId, String loggerResources) throws MissingResourceException {
+    ReactorLogTarget logTargetRef = logTarget;
+    if (logTargetRef != null) {
+      return logTargetRef.getLogger(loggerId, loggerResources);
+    } else {
+      throw new IllegalStateException("Attempted to access uninitialised reactor log service");
+    }
   }
 
   /*
