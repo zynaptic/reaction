@@ -126,7 +126,7 @@ public class MultiTimerTests {
       Object[] params = (Object[]) data;
       Reactor reactor = (Reactor) params[0];
       Deferred deferred = (Deferred) params[1];
-      int[] timeoutArray = { 0, 250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 3500, 4000 };
+      int[] timeoutArray = { 5000, 0, 250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 3500, 4000 };
       new OneShotTimerTest(reactor, deferred, timeoutArray);
     }
   }
@@ -142,7 +142,7 @@ public class MultiTimerTests {
       Object[] params = (Object[]) data;
       Reactor reactor = (Reactor) params[0];
       Deferred deferred = (Deferred) params[1];
-      int[] timeoutArray = { 0, 0, 0, 0, 1000, 1000, 1000, 1000, 2000, 2000, 2000, 2000, 3000, 3000, 3000, 3000 };
+      int[] timeoutArray = { 5000, 0, 0, 0, 0, 1000, 1000, 1000, 1000, 2000, 2000, 2000, 2000, 3000, 3000, 3000, 3000 };
       new OneShotTimerTest(reactor, deferred, timeoutArray);
     }
   }
