@@ -63,7 +63,10 @@ public final class ReactorCore implements Reactor, ReactorControl {
   private static final ReactorCore instance = new ReactorCore();
 
   // Flag used to indicate that the reactor is running.
-  private volatile boolean reactorRunning = false;
+  private boolean reactorRunning = false;
+
+  // Flag used to indicate that the reactor has completed shutdown.
+  private boolean reactorHalted = false;
 
   // Clock which provides the reactor timebase.
   private MonotonicClockSource clockSource;
@@ -108,7 +111,7 @@ public final class ReactorCore implements Reactor, ReactorControl {
   private Thread reactorThread = null;
 
   // Stores error conditions which cause the reactor to shut down.
-  private volatile Error exitError = null;
+  private Error exitError = null;
 
   /*
    * Private constructor for the ReactorCore class. This ensures that we can only
@@ -175,6 +178,7 @@ public final class ReactorCore implements Reactor, ReactorControl {
 
     // Spawn the reactor thread.
     reactorRunning = true;
+    reactorHalted = false;
     exitError = null;
     reactorThread = new Thread(threadGroup, runnable, "Reactor");
     reactorThread.setPriority(Thread.MAX_PRIORITY);
@@ -202,8 +206,10 @@ public final class ReactorCore implements Reactor, ReactorControl {
     if ((activeThread != null) && (activeThread != Thread.currentThread())) {
       activeThread.join();
       logger.log(Level.INFO, "Reactor stopped.");
-      if (exitError != null) {
-        throw exitError;
+      synchronized (this) {
+        if (exitError != null) {
+          throw exitError;
+        }
       }
     }
   }
@@ -262,7 +268,7 @@ public final class ReactorCore implements Reactor, ReactorControl {
       throws ReactorNotRunningException {
 
     // Check to see if the reactor is up.
-    if (!reactorRunning) {
+    if (reactorHalted) {
       throw new ReactorNotRunningException("Can't schedule signal unless reactor is runnng.");
     }
 
@@ -532,7 +538,7 @@ public final class ReactorCore implements Reactor, ReactorControl {
    * ReactorNotRunningException instead.
    */
   synchronized void processDeferred(final DeferredCore<?> deferred) {
-    if (reactorRunning) {
+    if (!reactorHalted) {
       deferredQueue.add(deferred);
       notifyAll();
     } else {
@@ -571,10 +577,10 @@ public final class ReactorCore implements Reactor, ReactorControl {
    * Starts the main reactor loop in the context of the dedicated reactor thread.
    */
   private void runReactor() {
+    synchronized (this) {
 
-    // Runs until the reactor stop method clears the running flag.
-    while (reactorRunning) {
-      synchronized (this) {
+      // Runs until the reactor stop method clears the running flag.
+      while (reactorRunning) {
 
         // Do a timed wait for the next event.
         if (deferredQueue.isEmpty() && signalQueue.isEmpty()) {
@@ -592,19 +598,19 @@ public final class ReactorCore implements Reactor, ReactorControl {
             reactorRunning = false;
           }
         }
+
+        // Process queued signals.
+        processSignalQueue();
+
+        // Process queued deferreds.
+        processDeferredQueue();
+
+        // Process completed threadables.
+        processCompletedThreads();
+
+        // Process expired timers.
+        processExpiredTimers();
       }
-
-      // Process queued signals outside synchronization lock.
-      processSignalQueue();
-
-      // Process queued deferreds outside synchronization lock.
-      processDeferredQueue();
-
-      // Process completed threadables with synchronized function.
-      processCompletedThreads();
-
-      // Process expired timers outside synchronization lock.
-      processExpiredTimers();
     }
 
     // Shutdown the reactor on reactor stop.
@@ -615,6 +621,8 @@ public final class ReactorCore implements Reactor, ReactorControl {
    * Shut down the reactor cleanly on reactor stop request.
    */
   private void reactorShutdown() {
+    LinkedList<SignalData<?>> signalRunList = null;
+    LinkedList<DeferredCore<?>> deferredRunList = null;
     synchronized (this) {
 
       // Cancel all running threads on reactor stop.
@@ -661,18 +669,46 @@ public final class ReactorCore implements Reactor, ReactorControl {
         shutdownSignal = null;
       }
 
-    }
+      // Clear the event queues.
+      if (!signalQueue.isEmpty()) {
+        signalRunList = signalQueue;
+        signalQueue = new LinkedList<SignalData<?>>();
+      }
+      if (!deferredQueue.isEmpty()) {
+        deferredRunList = deferredQueue;
+        deferredQueue = new LinkedList<DeferredCore<?>>();
+      }
 
-    // Fire any outstanding deferreds and signals outside synchronization lock.
-    processDeferredQueue();
-    processSignalQueue();
-
-    // Cancel all timers on reactor stop.
-    synchronized (this) {
+      // Cancel all timers on reactor stop.
       while (!timerSet.isEmpty()) {
         TimerData<?> timer = timerSet.first();
         timerSet.remove(timer);
         timerMap.remove(timer.timeable);
+      }
+      reactorHalted = true;
+    }
+
+    // Fire any outstanding deferreds and signals outside synchronization lock.
+    if (signalRunList != null) {
+      for (SignalData<?> signalData : signalRunList) {
+        try {
+          signalData.typePunned().signalId.processSignal(signalData.data, signalData.isFinal);
+        } catch (Exception error) {
+          logger.log(Level.WARNING, "Unhandled exception in signal execution.", error);
+        } catch (Error error) {
+          logger.log(Level.SEVERE, "Fatal error in signal execution - stopping reactor.", error);
+        }
+      }
+    }
+    if (deferredRunList != null) {
+      for (DeferredCore<?> deferred : deferredRunList) {
+        try {
+          deferred.processCallbackChain(true);
+        } catch (Exception error) {
+          logger.log(Level.WARNING, "Unhandled exception in deferred execution.", error);
+        } catch (Error error) {
+          logger.log(Level.SEVERE, "Fatal error in deferred execution - stopping reactor.", error);
+        }
       }
     }
   }
@@ -681,48 +717,57 @@ public final class ReactorCore implements Reactor, ReactorControl {
    * Fire any outstanding timer events.
    */
   private void processExpiredTimers() {
-    LinkedList<TimerData<?>> runList = new LinkedList<TimerData<?>>();
-    synchronized (this) {
-      while ((!timerSet.isEmpty()) && ((timerSet.first().trigger - clockSource.getMsTime()) <= 0)) {
+    LinkedList<TimerData<?>> runList = null;
+    while ((!timerSet.isEmpty()) && ((timerSet.first().trigger - clockSource.getMsTime()) <= 0)) {
+      if (runList == null) {
+        runList = new LinkedList<TimerData<?>>();
+      }
 
-        // Pop the timer from the front of the queue.
-        TimerData<?> timer = timerSet.first();
-        timerSet.remove(timer);
+      // Pop the timer from the front of the queue.
+      TimerData<?> timer = timerSet.first();
+      timerSet.remove(timer);
 
-        // For one shot timers we remove the timer first so the timeable can
-        // re-register itself.
-        if (timer.interval <= 0) {
-          timerMap.remove(timer.timeable);
-        }
+      // For one shot timers we remove the timer first so the timeable can
+      // re-register itself.
+      if (timer.interval <= 0) {
+        timerMap.remove(timer.timeable);
+      }
 
-        // For repeating timers, update the trigger point. Note that in an
-        // overloaded system the update interval is increased to give graceful
-        // degradation.
-        else {
+      // For repeating timers, update the trigger point. Note that in an
+      // overloaded system the update interval is increased to give graceful
+      // degradation.
+      else {
+        timer.trigger += timer.interval;
+        while ((timer.trigger - clockSource.getMsTime()) <= 0) {
+          logger.log(Level.WARNING, "Forced to merge " + timer.interval + "ms interval callbacks.");
           timer.trigger += timer.interval;
-          while ((timer.trigger - clockSource.getMsTime()) <= 0) {
-            logger.log(Level.WARNING, "Forced to merge " + timer.interval + "ms interval callbacks.");
-            timer.trigger += timer.interval;
-          }
-          timerSet.add(timer);
         }
-        runList.add(timer);
+        timerSet.add(timer);
       }
+      runList.add(timer);
+    }
 
-      // Fire the timer callbacks outside the main synchronization lock. Any
-      // exceptions are caught and logged here to prevent them bringing down the
-      // reactor.
-      for (TimerData<?> timer : runList) {
-        try {
-          timer.typePunned().timeable.onTick(timer.data);
-        } catch (Exception error) {
-          logger.log(Level.WARNING, "Unhandled exception in timer callback.", error);
-        } catch (Error error) {
-          logger.log(Level.SEVERE, "Fatal error in timer callback - stopping reactor.", error);
-          exitError = error;
-          reactorRunning = false;
+    // Fire the timer callbacks in an independent thread. Any exceptions are caught
+    // and logged here to prevent them bringing down the reactor.
+    if (runList != null) {
+      runThread(new Threadable<LinkedList<TimerData<?>>, Void>() {
+        public Void run(LinkedList<TimerData<?>> runList) {
+          for (TimerData<?> timer : runList) {
+            try {
+              timer.typePunned().timeable.onTick(timer.data);
+            } catch (Exception error) {
+              logger.log(Level.WARNING, "Unhandled exception in timer callback.", error);
+            } catch (Error error) {
+              logger.log(Level.SEVERE, "Fatal error in timer callback - stopping reactor.", error);
+              synchronized (ReactorCore.this) {
+                exitError = error;
+                reactorRunning = false;
+              }
+            }
+          }
+          return null;
         }
-      }
+      }, runList).discard();
     }
   }
 
@@ -732,29 +777,32 @@ public final class ReactorCore implements Reactor, ReactorControl {
    */
   private void processSignalQueue() {
     LinkedList<SignalData<?>> runList = null;
-    synchronized (this) {
-      if (!signalQueue.isEmpty()) {
-        runList = signalQueue;
-        signalQueue = new LinkedList<SignalData<?>>();
-      }
+    if (!signalQueue.isEmpty()) {
+      runList = signalQueue;
+      signalQueue = new LinkedList<SignalData<?>>();
     }
 
-    // Fire the signal callbacks outside the main synchronization lock. Any
-    // exceptions are caught and logged here to prevent them bringing down the
-    // reactor.
+    // Fire the signal callbacks in an independent thread. Any exceptions are caught
+    // and logged here to prevent them bringing down the reactor.
     if (runList != null) {
-      while (!runList.isEmpty()) {
-        SignalData<?> signalData = runList.pop();
-        try {
-          signalData.typePunned().signalId.processSignal(signalData.data, signalData.isFinal);
-        } catch (Exception error) {
-          logger.log(Level.WARNING, "Unhandled exception in signal execution.", error);
-        } catch (Error error) {
-          logger.log(Level.SEVERE, "Fatal error in signal execution - stopping reactor.", error);
-          exitError = error;
-          reactorRunning = false;
+      runThread(new Threadable<LinkedList<SignalData<?>>, Void>() {
+        public Void run(LinkedList<SignalData<?>> runList) {
+          for (SignalData<?> signalData : runList) {
+            try {
+              signalData.typePunned().signalId.processSignal(signalData.data, signalData.isFinal);
+            } catch (Exception error) {
+              logger.log(Level.WARNING, "Unhandled exception in signal execution.", error);
+            } catch (Error error) {
+              logger.log(Level.SEVERE, "Fatal error in signal execution - stopping reactor.", error);
+              synchronized (ReactorCore.this) {
+                exitError = error;
+                reactorRunning = false;
+              }
+            }
+          }
+          return null;
         }
-      }
+      }, runList).discard();
     }
   }
 
@@ -764,36 +812,39 @@ public final class ReactorCore implements Reactor, ReactorControl {
    */
   private void processDeferredQueue() {
     LinkedList<DeferredCore<?>> runList = null;
-    synchronized (this) {
-      if (!deferredQueue.isEmpty()) {
-        runList = deferredQueue;
-        deferredQueue = new LinkedList<DeferredCore<?>>();
-      }
+    if (!deferredQueue.isEmpty()) {
+      runList = deferredQueue;
+      deferredQueue = new LinkedList<DeferredCore<?>>();
     }
 
-    // Fire the deferred callbacks outside the main synchronization lock. Any
-    // exceptions are caught and logged here to prevent them bringing down the
-    // reactor.
+    // Fire the deferred callbacks in an independent thread. Any exceptions are
+    // caught and logged here to prevent them bringing down the reactor.
     if (runList != null) {
-      while (!runList.isEmpty()) {
-        DeferredCore<?> deferred = runList.pop();
-        try {
-          deferred.processCallbackChain(true);
-        } catch (Exception error) {
-          logger.log(Level.WARNING, "Unhandled exception in deferred execution.", error);
-        } catch (Error error) {
-          logger.log(Level.SEVERE, "Fatal error in deferred execution - stopping reactor.", error);
-          exitError = error;
-          reactorRunning = false;
+      runThread(new Threadable<LinkedList<DeferredCore<?>>, Void>() {
+        public Void run(LinkedList<DeferredCore<?>> runList) {
+          for (DeferredCore<?> deferred : runList) {
+            try {
+              deferred.processCallbackChain(true);
+            } catch (Exception error) {
+              logger.log(Level.WARNING, "Unhandled exception in deferred execution.", error);
+            } catch (Error error) {
+              logger.log(Level.SEVERE, "Fatal error in deferred execution - stopping reactor.", error);
+              synchronized (ReactorCore.this) {
+                exitError = error;
+                reactorRunning = false;
+              }
+            }
+          }
+          return null;
         }
-      }
+      }, runList).discard();
     }
   }
 
   /*
    * Process any outstanding completed threads.
    */
-  private synchronized void processCompletedThreads() {
+  private void processCompletedThreads() {
     Iterator<ThreadContainer<?, ?>> completedThreadIter = completedThreads.values().iterator();
     for (int i = 0; i < completedThreads.size(); i++) {
       ThreadContainer<?, ?> threadContainer = completedThreadIter.next();
